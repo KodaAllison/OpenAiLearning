@@ -15,16 +15,16 @@ const client = new OpenAI({ apiKey: openaiApiKey });
 const response = await client.chat.completions.create({
 	model: 'gpt-4o-mini',
 	messages: [
-		{ role: 'assistant', content: 'You are a top soccer pundit in the UK' },
+		{ role: 'assistant', content: 'You are very knowledgeable about the world and what youth like to do' },
 		{
 			role: 'user',
-			content: `Provide a list of 3 footballers who are comparable in position and skill. Format the response as a JSON array with each player's first name, last name, date of birth (in YYYY-MM-DD format), and nationality. Example format:
+			content: `Provide a list of 5 places where it is 5am with some details. Example format:
       [
         {
-          "firstName": "John",
-          "lastName": "Doe",
-          "dateOfBirth": "1990-01-01",
-          "nationality": "English"
+          "country": "England",
+          "city": "Newcastle",
+          "favouriteBeer": "Stella",
+          "goodBar": "The Hancock"
         },
         ...
       ]`,
@@ -33,22 +33,30 @@ const response = await client.chat.completions.create({
 });
 
 try {
-	// Extract the content of the response and clean it from markdown or extra text
-	const rawContent = response.choices[0].message.content || '';
+	// Extract the content of the response
+	const rawContent = response.choices?.[0]?.message?.content || '';
 	
-	// Attempt to extract JSON from the content
-	const jsonString = rawContent.match(/```json([\s\S]*?)```/)?.[1] || rawContent;
-	
-	// Parse the cleaned JSON string
-	const players = JSON.parse(jsonString.trim());
-	
-	// Sort players by last name (you can change this to sort by another field if needed)
-	players.sort((a: { lastName: string }, b: { lastName: string }) =>
-		a.lastName.localeCompare(b.lastName)
-	);
-	
-	// Log the sorted players
-	console.log(JSON.stringify(players, null, 2));
+	// Check if the response contains a code block or plain JSON, and extract accordingly
+	const jsonStringMatch = rawContent.match(/```json([\s\S]*?)```/);
+	const jsonString = jsonStringMatch ? jsonStringMatch[1] : rawContent;
+
+	// Parse the JSON string
+	const places = JSON.parse(jsonString.trim());
+
+	if (!Array.isArray(places) || places.length === 0) {
+		throw new Error('The response does not contain a valid array of places.');
+	}
+
+	// Sort the places by city name, ensuring each place has a valid 'city' field
+	places.sort((a: { city?: string }, b: { city?: string }) => {
+		if (!a.city || !b.city) {
+			throw new Error('Missing "city" field in one or more places.');
+		}
+		return a.city.localeCompare(b.city);
+	});
+
+	// Log the sorted places
+	console.log(JSON.stringify(places, null, 2));
 } catch (error) {
-	console.error('Failed to parse the response as JSON or sort it:', error);
+	console.error('Failed to parse the response or sort the data:', error);
 }
